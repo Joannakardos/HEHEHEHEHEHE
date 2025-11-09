@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>I LOVE YOU Brush</title>
+    <title>HEHEHEHEH</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
     <style>
@@ -55,7 +55,6 @@
             display: block;
         }
 
-        /* Supprime le style du panneau dat.GUI */
         .dg {
             background: transparent !important;
             box-shadow: none !important;
@@ -104,7 +103,9 @@
         }
 
         function setup() {
-            let cnv = createCanvas(900, 600);
+            let isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+
+            let cnv = createCanvas(isMobile ? windowWidth : 900, isMobile ? windowHeight : 600);
             cnv.parent('canvas-container');
 
             img = originalImg.get();
@@ -114,7 +115,7 @@
             textLayer = createGraphics(width, height);
             textLayer.background(0);
             textLayer.textAlign(CENTER, CENTER);
-            textLayer.textSize(100);
+            textLayer.textSize(isMobile ? width / 8 : 100);
             textLayer.fill(255);
             textLayer.text("I LOVE YOU <3", width / 2, height / 2);
 
@@ -167,12 +168,14 @@
         function draw() {
             background(0);
 
-            magnifierX = lerp(magnifierX, mouseX, 0.2);
-            magnifierY = lerp(magnifierY, mouseY, 0.2);
-            let mx = magnifierX;
-            let my = magnifierY;
+            let isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+            let mx = isMobile && touches.length > 0 ? touches[0].x : mouseX;
+            let my = isMobile && touches.length > 0 ? touches[0].y : mouseY;
 
-            applyBrush(mx, my);
+            magnifierX = lerp(magnifierX, mx, 0.2);
+            magnifierY = lerp(magnifierY, my, 0.2);
+
+            applyBrush(magnifierX, magnifierY);
 
             img.loadPixels();
             noFill();
@@ -193,7 +196,7 @@
                 strokeWeight(strokeSize);
                 point(x, y);
 
-                if (dist(x, y, mx, my) < params.brushSize) {
+                if (dist(x, y, magnifierX, magnifierY) < params.brushSize) {
                     let c = textLayer.get(floor(x), floor(y));
                     stroke(c[0], c[1], c[2]);
                     point(x, y);
@@ -202,7 +205,23 @@
 
             noFill();
             stroke(255, 50);
-            circle(mx, my, params.brushSize * 2);
+            circle(magnifierX, magnifierY, params.brushSize * 2);
+        }
+
+        function windowResized() {
+            let isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+            if (isMobile) {
+                resizeCanvas(windowWidth, windowHeight);
+                img.resize(width, height);
+                generatePoints();
+
+                textLayer = createGraphics(width, height);
+                textLayer.background(0);
+                textLayer.textAlign(CENTER, CENTER);
+                textLayer.textSize(width / 8);
+                textLayer.fill(255);
+                textLayer.text("I LOVE YOU <3", width / 2, height / 2);
+            }
         }
     </script>
 </body>
