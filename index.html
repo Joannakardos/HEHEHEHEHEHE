@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>I LOVE YOU Brush</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.6.0/p5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #000;
+            overflow: hidden;
+            user-select: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        nav {
+            position: fixed;
+            inset-inline: 0;
+            margin: auto;
+            margin-top: 20px;
+            padding: 10px 30px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1),
+                0 4px 16px rgba(0, 0, 0, 0.05);
+            display: flex;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            position: relative;
+            margin-top: 80px;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        /* Supprime le style du panneau dat.GUI */
+        .dg {
+            background: transparent !important;
+            box-shadow: none !important;
+            width: auto !important;
+        }
+
+        .dg .cr {
+            padding: 0 10px !important;
+        }
+
+        .dg .slider {
+            width: 100px !important;
+        }
+
+        .dg .c {
+            display: flex !important;
+            align-items: center !important;
+            gap: 5px;
+        }
+
+        .dg .title {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <nav id="navbar"></nav>
+    <div id="canvas-container"></div>
+
+    <script>
+        let originalImg, img, points = [];
+        let magnifierX = 0, magnifierY = 0;
+        let textLayer;
+        let gui;
+
+        let params = {
+            brushSize: 150,
+            brushStrength: 2,
+            minStroke: 2,
+            maxStroke: 6
+        };
+
+        function preload() {
+            originalImg = loadImage("internet.jpg"); // remplace par ton image
+        }
+
+        function setup() {
+            let cnv = createCanvas(900, 600);
+            cnv.parent('canvas-container');
+
+            img = originalImg.get();
+            img.resize(width, height);
+            generatePoints();
+
+            textLayer = createGraphics(width, height);
+            textLayer.background(0);
+            textLayer.textAlign(CENTER, CENTER);
+            textLayer.textSize(100);
+            textLayer.fill(255);
+            textLayer.text("I LOVE YOU <3", width / 2, height / 2);
+
+            gui = new dat.GUI({ autoPlace: false, closed: false });
+            gui.add(params, 'brushSize', 50, 400).step(1);
+            gui.add(params, 'brushStrength', 0.1, 5).step(0.1);
+            document.getElementById('navbar').appendChild(gui.domElement);
+
+            magnifierX = width / 2;
+            magnifierY = height / 2;
+        }
+
+        function generatePoints() {
+            points = [];
+            let spacing = 10;
+            for (let y = 0; y < img.height; y += spacing) {
+                for (let x = 0; x < img.width; x += spacing) {
+                    let nx = noise(x * 0.01, y * 0.01) - 0.5;
+                    let ny = noise((x + 500) * 0.01, (y + 500) * 0.01) - 0.5;
+                    let px = x + nx * spacing;
+                    let py = y + ny * spacing;
+                    points.push({
+                        pos: createVector(px, py),
+                        originalPos: createVector(px, py),
+                        vel: createVector(0, 0)
+                    });
+                }
+            }
+        }
+
+        function applyBrush(mx, my) {
+            for (let pt of points) {
+                let dir = p5.Vector.sub(pt.pos, createVector(mx, my));
+                let d = dir.mag();
+
+                if (d < params.brushSize) {
+                    let strength = (1 - d / params.brushSize) * params.brushStrength;
+                    dir.normalize();
+                    dir.mult(strength);
+                    pt.vel.add(dir);
+                }
+
+                pt.vel.mult(0.9);
+                let restore = p5.Vector.sub(pt.originalPos, pt.pos).mult(0.05);
+                pt.vel.add(restore);
+                pt.pos.add(pt.vel);
+            }
+        }
+
+        function draw() {
+            background(0);
+
+            magnifierX = lerp(magnifierX, mouseX, 0.2);
+            magnifierY = lerp(magnifierY, mouseY, 0.2);
+            let mx = magnifierX;
+            let my = magnifierY;
+
+            applyBrush(mx, my);
+
+            img.loadPixels();
+            noFill();
+
+            for (let pt of points) {
+                let x = pt.pos.x;
+                let y = pt.pos.y;
+                let px = constrain(floor(x), 0, img.width - 1);
+                let py = constrain(floor(y), 0, img.height - 1);
+                let index = (px + py * img.width) * 4;
+
+                let r = img.pixels[index];
+                let g = img.pixels[index + 1];
+                let b = img.pixels[index + 2];
+
+                let strokeSize = map((r + g + b) / 3, 0, 255, params.minStroke, params.maxStroke);
+                stroke(r, g, b);
+                strokeWeight(strokeSize);
+                point(x, y);
+
+                if (dist(x, y, mx, my) < params.brushSize) {
+                    let c = textLayer.get(floor(x), floor(y));
+                    stroke(c[0], c[1], c[2]);
+                    point(x, y);
+                }
+            }
+
+            noFill();
+            stroke(255, 50);
+            circle(mx, my, params.brushSize * 2);
+        }
+    </script>
+</body>
+
+</html>
